@@ -203,8 +203,8 @@ def generar_id_reservacion(conexion):
 
 
 def crear_reservacion(conexion, carne, codigo_sala, fecha, hora_inicio, duracion, cantidad_personas, serie_id=None):
-    #guarda una reservación de forma transaccional: si algo falla no se guarda nada a medias
-
+    # Guarda una reservación individual y revierte el INSERT si ocurre un error de integridad.   
+    
     id_reservacion = generar_id_reservacion(conexion)
     cursor = conexion.cursor()
     try:
@@ -229,6 +229,98 @@ def crear_reservacion(conexion, carne, codigo_sala, fecha, hora_inicio, duracion
 
     registrar_auditoria(conexion, "creacion", "reservacion", id_reservacion)
     return id_reservacion
+
+
+def crear_serie_reservaciones(conexion, reservaciones, serie_id):
+    """
+    Guarda todas las reservaciones de una serie dentro de una sola transacción.
+
+    Si alguna inserción falla, se revierte toda la serie, incluidos los IDs
+    generados y los registros de auditoría.
+    """
+
+    cursor = conexion.cursor()
+    ids_creados = []
+
+    try:
+        for reserva in reservaciones:
+
+            # Generar ID sin hacer commit todavía.
+            cursor.execute(
+                """
+                UPDATE contadores
+                SET valor = valor + 1
+                WHERE nombre = 'reservacion';
+                """
+            )
+
+            cursor.execute(
+                """
+                SELECT valor
+                FROM contadores
+                WHERE nombre = 'reservacion';
+                """
+            )
+
+            numero = cursor.fetchone()[0]
+            id_reservacion = f"R{numero:04d}"
+
+            # Insertar la reservación.
+            cursor.execute(
+                """
+                INSERT INTO reservaciones
+                    (id, carne, codigo_sala, fecha, hora_inicio, duracion,
+                     cantidad_personas, estado, serie_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'activa', ?);
+                """,
+                (
+                    id_reservacion,
+                    reserva["carne"],
+                    reserva["codigo_sala"],
+                    reserva["fecha"],
+                    reserva["hora_inicio"],
+                    reserva["duracion"],
+                    reserva["cantidad_personas"],
+                    serie_id,
+                ),
+            )
+
+            # Auditoría dentro de la misma transacción.
+            cursor.execute(
+                """
+                INSERT INTO auditoria
+                    (fecha_hora, tipo_accion, entidad, identificador)
+                VALUES (?, ?, ?, ?);
+                """,
+                (
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "creacion",
+                    "reservacion",
+                    id_reservacion,
+                ),
+            )
+
+            ids_creados.append(id_reservacion)
+
+        # Solo aquí se confirma toda la serie.
+        conexion.commit()
+
+        return ids_creados
+
+    except sqlite3.IntegrityError as error:
+        conexion.rollback()
+
+        if "FOREIGN KEY" in str(error).upper():
+            raise
+
+        raise ReservaDuplicadaError(
+            "No se pudo crear la serie porque una de las reservaciones "
+            "entra en conflicto con una reservación existente."
+        )
+
+    except Exception:
+        conexion.rollback()
+        raise
 
 
 def cancelar_reservacion(conexion, id_reservacion):
@@ -260,6 +352,104 @@ def listar_reservaciones_por_sala_fecha(conexion, codigo_sala, fecha):
     )
     return [dict(f) for f in cursor.fetchall()]
 
+
+def listar_reservaciones_activas_por_sala(conexion, codigo_sala):
+    """
+    Devuelve todas las reservaciones activas asociadas a una sala.
+    Utilizada por las reglas de negocio para validar cambios de capacidad.
+    """
+    cursor = conexion.cursor()
+    cursor.execute(
+        """
+        SELECT * FROM reservaciones
+        WHERE codigo_sala = ? AND estado = 'activa'
+        ORDER BY fecha, hora_inicio;
+        """,
+        (codigo_sala,),
+    )
+    return [dict(f) for f in cursor.fetchall()]
+
+
+def obtener_reservacion(conexion, id_reservacion):
+    """
+    Devuelve una reservación por su ID.
+    Retorna None si no existe.
+    """
+    cursor = conexion.cursor()
+    cursor.execute(
+        "SELECT * FROM reservaciones WHERE id = ?;",
+        (id_reservacion,),
+    )
+
+    fila = cursor.fetchone()
+
+    return dict(fila) if fila else None
+
+
+def cancelar_reservaciones_futuras_serie(conexion,serie_id,fecha_desde,hora_desde):
+    """
+    Cancela todas las reservaciones activas de una serie a partir
+    de una ocurrencia determinada, incluyendo esa ocurrencia.
+
+    La operación completa se realiza dentro de una sola transacción.
+    """
+
+    cursor = conexion.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT id
+            FROM reservaciones
+            WHERE serie_id = ?
+              AND estado = 'activa'
+              AND (
+                    fecha > ?
+                    OR (fecha = ? AND hora_inicio >= ?)
+                  )
+            ORDER BY fecha, hora_inicio;
+            """,
+            (
+                serie_id,
+                fecha_desde,
+                fecha_desde,
+                hora_desde,
+            ),
+        )
+
+        ids_cancelados = [fila[0] for fila in cursor.fetchall()]
+
+        for id_reservacion in ids_cancelados:
+            cursor.execute(
+                """
+                UPDATE reservaciones
+                SET estado = 'cancelada'
+                WHERE id = ?;
+                """,
+                (id_reservacion,),
+            )
+
+            cursor.execute(
+                """
+                INSERT INTO auditoria
+                    (fecha_hora, tipo_accion, entidad, identificador)
+                VALUES (?, ?, ?, ?);
+                """,
+                (
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "cancelacion",
+                    "reservacion",
+                    id_reservacion,
+                ),
+            )
+
+        conexion.commit()
+
+        return ids_cancelados
+
+    except Exception:
+        conexion.rollback()
+        raise
 
 # ---------------------------------------------------------------------------
 # Auditoría
