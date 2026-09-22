@@ -8,7 +8,7 @@ La interfaz gráfica no accede directamente a SQL.
 """
 
 import sqlite3
-
+from src.validators.validaciones import ValidacionError
 from src.database import db
 from src.services.entidades_service import (
     validar_nuevo_estudiante,
@@ -61,6 +61,9 @@ class AppService:
                 datos["correo"],
             )
 
+        except ValidacionError as exc:
+            raise ValueError(str(exc)) from exc
+
         except ValueError:
             raise
 
@@ -105,6 +108,9 @@ class AppService:
                 datos["correo"],
             )
 
+        except ValidacionError as exc:
+            raise ValueError(str(exc)) from exc
+
         except ValueError:
             raise
 
@@ -141,6 +147,9 @@ class AppService:
                 carne,
                 datos["estado"],
             )
+
+        except ValidacionError as exc:
+            raise ValueError(str(exc)) from exc
 
         except ValueError:
             raise
@@ -186,6 +195,9 @@ class AppService:
                 datos["capacidad"],
                 datos["estado"],
             )
+
+        except ValidacionError as exc:
+            raise ValueError(str(exc)) from exc
 
         except ValueError:
             raise
@@ -234,6 +246,9 @@ class AppService:
                 datos["estado"],
             )
 
+        except ValidacionError as exc:
+            raise ValueError(str(exc)) from exc
+
         except ValueError:
             raise
 
@@ -272,6 +287,9 @@ class AppService:
                 codigo,
                 datos["estado"],
             )
+
+        except ValidacionError as exc:
+            raise ValueError(str(exc)) from exc
 
         except ValueError:
             raise
