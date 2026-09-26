@@ -16,7 +16,18 @@ from src.services.entidades_service import (
     validar_nueva_sala,
     validar_modificacion_sala,
 )
-
+from src.services.reservaciones_service import (
+    crear_reservacion,
+    consultar_reservaciones,
+    buscar_por_estudiante,
+    actualizar_reservacion,
+    cancelar_reservacion,
+    consultar_disponibilidad as consultar_disponibilidad_reservacion,
+    validar_recurrencia as validar_recurrencia_reservacion,
+    crear_serie_recurrente as crear_serie_recurrente_reservacion,
+    cancelar_ocurrencia as cancelar_ocurrencia_reservacion,
+    cancelar_serie_desde_ocurrencia as cancelar_serie_desde_ocurrencia_reservacion
+)
 
 class AppService:
     """Servicio utilizado por las pantallas de estudiantes y salas."""
@@ -299,6 +310,298 @@ class AppService:
                 "No se pudo cambiar el estado de la sala."
             ) from exc
 
+    # ------------------------------------------------------------------
+    # Reservaciones
+    # ------------------------------------------------------------------
+
+    def listar(self):
+        """Devuelve todas las reservaciones."""
+        try:
+            return consultar_reservaciones(self._conexion)
+
+        except sqlite3.Error as exc:
+            raise RuntimeError(
+                "No se pudieron consultar las reservaciones."
+            ) from exc
+
+    def listar_por_rango_fechas(
+                self, 
+                fecha_inicio: str,
+                fecha_fin: str,
+        ): 
+            """Devuelve todas las reservaciones dentro de un rango de fechas."""
+            try:
+                return db.listar_reservaciones_por_rango_fechas(
+                    self._conexion,
+                    fecha_inicio,
+                    fecha_fin,
+                )
+    
+            except sqlite3.Error as exc:
+                raise RuntimeError(
+                    "No se pudieron consultar las reservaciones dentro del rango de fechas."
+                ) from exc
+
+    def crear(
+        self,
+        carne: str,
+        codigo_sala: str,
+        fecha: str,
+        hora_inicio: str,
+        duracion: str,
+        cantidad_personas: str,
+    ):
+        """Valida y registra una reservación nueva."""
+        try:
+            return crear_reservacion(
+                self._conexion,
+                carne,
+                codigo_sala,
+                fecha,
+                hora_inicio,
+                duracion,
+                cantidad_personas,
+            )
+
+        except ValidacionError as exc:
+            raise ValueError(str(exc)) from exc
+
+        except ValueError:
+            raise
+
+        except sqlite3.Error as exc:
+            raise RuntimeError(
+                "No se pudo registrar la reservación."
+            ) from exc
+
+    def buscar_por_estudiante(
+        self,
+        carne: str,
+    ):
+        """Devuelve todas las reservaciones de un estudiante."""
+        try:
+            return buscar_por_estudiante(
+                self._conexion,
+                carne,
+            )
+
+        except ValidacionError as exc:
+            raise ValueError(str(exc)) from exc
+
+        except ValueError:
+            raise
+
+        except sqlite3.Error as exc:
+            raise RuntimeError(
+                "No se pudieron consultar las reservaciones del estudiante."
+            ) from exc
+
+    def cancelar(
+            self, 
+            codigo: str,
+    ):
+        """Cancela una reservación."""
+        try:
+            return cancelar_reservacion(
+                self._conexion,
+                codigo,
+            )
+
+        except ValidacionError as exc:
+            raise ValueError(str(exc)) from exc
+
+        except ValueError:
+            raise
+
+        except sqlite3.Error as exc:
+            raise RuntimeError(
+                "No se pudo cancelar la reservación."
+            ) from exc
+
+    def modificar(
+        self,
+        id_reservacion: str,
+        codigo_sala: str,
+        fecha: str,
+        hora_inicio: str,
+        duracion: str,
+        cantidad_personas: str,
+    ):
+        """Valida y actualiza una reservación."""
+        try:
+            return actualizar_reservacion(
+                self._conexion,
+                id_reservacion,
+                codigo_sala,
+                fecha,
+                hora_inicio,
+                duracion,
+                cantidad_personas,
+            )
+
+        except ValidacionError as exc:
+            raise ValueError(str(exc)) from exc
+
+        except ValueError:
+            raise
+
+        except sqlite3.Error as exc:
+            raise RuntimeError(
+                "No se pudo actualizar la reservación."
+            ) from exc
+
+    def listar_salas_disponibles(self):
+        """Devuelve todas las salas disponibles para reservación."""
+        try:
+            salas = db.listar_salas(self._conexion)
+
+            return [sala for sala in salas if sala["estado"] == "disponible"]
+
+        except sqlite3.Error as exc:
+            raise RuntimeError(
+                "No se pudieron consultar las salas disponibles."
+            ) from exc
+
+    def consultar_disponibilidad(
+        self,
+        codigo_sala: str,
+        fecha: str,
+        hora_inicio: str,
+        duracion: str,
+    ):
+        """Consulta la disponibilidad de una sala sin crear reservaciones."""
+        try:
+            return consultar_disponibilidad_reservacion(
+                self._conexion, 
+                codigo_sala,
+                fecha,
+                hora_inicio,
+                duracion,
+            )
+
+        except ValidacionError as exc:
+            raise ValueError(str(exc)) from exc
+
+        except ValueError:
+            raise
+
+        except sqlite3.Error as exc:
+            raise RuntimeError(
+                "No se pudo consultar la disponibilidad de la sala."
+            ) from exc
+
+    def validar_recurrencia(
+        self,
+        carne: str,
+        codigo_sala: str,
+        fecha_inicial: str,
+        hora_inicio: str,
+        duracion: str,
+        cantidad_personas: str,
+        cantidad_ocurrencias: str,
+    ):
+        """Valida una serie de reservaciones recurrentes."""
+        try:
+            return validar_recurrencia_reservacion(
+                self._conexion,
+                carne,
+                codigo_sala,
+                fecha_inicial,
+                hora_inicio,
+                duracion,
+                cantidad_personas,
+                cantidad_ocurrencias,
+            )
+
+        except ValidacionError as exc:
+            raise ValueError(str(exc)) from exc
+
+        except ValueError:
+            raise
+
+        except sqlite3.Error as exc:
+            raise RuntimeError(
+                "No se pudo validar la recurrencia de la reservación."
+            ) from exc
+
+    def crear_serie_recurrente(
+        self,
+        carne: str,
+        codigo_sala: str,
+        fecha_inicial: str,
+        hora_inicio: str,
+        duracion: str,
+        cantidad_personas: str,
+        cantidad_ocurrencias: str,
+    ):
+        """Crea una serie de reservaciones recurrentes."""
+        try:
+            return crear_serie_recurrente_reservacion(
+                self._conexion,
+                carne,
+                codigo_sala,
+                fecha_inicial,
+                hora_inicio,
+                duracion,
+                cantidad_personas,
+                cantidad_ocurrencias
+            )
+
+        except ValidacionError as exc:
+            raise ValueError(str(exc)) from exc
+
+        except ValueError:
+            raise
+
+        except sqlite3.Error as exc:
+            raise RuntimeError(
+                "No se pudo crear la serie de reservaciones recurrentes."
+            ) from exc
+
+    def cancelar_ocurrencia(
+        self,
+        id_reservacion: str,
+    ):
+        """Cancela una ocurrencia de una serie de reservaciones."""
+        try:
+            return cancelar_ocurrencia_reservacion(
+                self._conexion,
+                id_reservacion,
+            )
+
+        except ValidacionError as exc:
+            raise ValueError(str(exc)) from exc
+
+        except ValueError:
+            raise
+
+        except sqlite3.Error as exc:
+            raise RuntimeError(
+                "No se pudo cancelar la ocurrencia de la reservación."
+            ) from exc  
+
+    def cancelar_serie_desde_ocurrencia(
+        self,
+        id_reservacion: str,
+    ):
+        """Cancela una serie de reservaciones desde una ocurrencia."""
+        try:
+            return cancelar_serie_desde_ocurrencia_reservacion(
+                self._conexion,
+                id_reservacion,
+            )
+
+        except ValidacionError as exc:
+            raise ValueError(str(exc)) from exc
+
+        except ValueError:
+            raise
+
+        except sqlite3.Error as exc:
+            raise RuntimeError(
+                "No se pudo cancelar la serie de reservaciones desde la ocurrencia."
+            ) from exc
+        
     # ------------------------------------------------------------------
     # Cierre
     # ------------------------------------------------------------------

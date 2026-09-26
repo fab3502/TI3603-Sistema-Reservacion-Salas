@@ -5,20 +5,23 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from src.ui.contracts import EstudiantesService, SalasService
+from src.ui.contracts import EstudiantesService, SalasService, ReservacionesService
+from src.ui.reservations_view import ReservationsView
+from src.ui.reports_view import ReportsView
 from src.ui.rooms_view import RoomsView
 from src.ui.students_view import StudentsView
 from src.ui.styles import configurar_estilos
 
 
 class MainWindow(tk.Tk):
-    def __init__(self, estudiantes_service: EstudiantesService, salas_service: SalasService) -> None:
+    def __init__(self, estudiantes_service: EstudiantesService, salas_service: SalasService, reservaciones_service: ReservacionesService) -> None:
         super().__init__()
         self.title("Sistema de reservación de salas de estudio")
         self.geometry("1120x700")
         self.minsize(900, 580)
         self._estudiantes_service = estudiantes_service
         self._salas_service = salas_service
+        self._reservaciones_service = reservaciones_service
         configurar_estilos(self)
 
         self._contenedor = ttk.Frame(self, style="App.TFrame")
@@ -68,16 +71,16 @@ class MainWindow(tk.Tk):
             1,
             0,
             "Reservaciones",
-            "Módulo pendiente de integración con la Parte 4.",
-            lambda: self._modulo_pendiente("Reservaciones"),
+            "Creación, consulta, modificación y cancelación de reservaciones.",
+            lambda: self._mostrar_reservaciones(),
         )
         self._tarjeta(
             grid,
             1,
             1,
             "Panel, reportes e historial",
-            "Módulos pendientes de integración con las Partes 4 y 5.",
-            lambda: self._modulo_pendiente("Panel, reportes e historial"),
+            "Consulte resportes de reservaciones por rango de fechas y el historial de reservaciones.",
+            self._mostrar_reportes,
         )
 
         pie = ttk.Frame(vista, style="App.TFrame")
@@ -99,12 +102,22 @@ class MainWindow(tk.Tk):
         self._limpiar()
         RoomsView(self._contenedor, self._salas_service, self.mostrar_inicio).pack(fill="both", expand=True)
 
-    def _modulo_pendiente(self, modulo: str) -> None:
-        messagebox.showinfo(
-            "Módulo pendiente de integración",
-            f"{modulo} será integrado por la parte responsable del proyecto.",
-            parent=self,
-        )
+    def _mostrar_reservaciones(self) -> None:
+        self._limpiar()
+        ReservationsView(
+            self._contenedor, 
+            self._reservaciones_service, 
+            self.mostrar_inicio
+        ).pack(fill="both", expand=True)
+
+    def _mostrar_reportes(self) -> None:
+        self._limpiar()
+
+        ReportsView(
+            self._contenedor,
+            self._reservaciones_service,
+            self.mostrar_inicio
+        ).pack(fill="both", expand=True)
 
     def _salir(self) -> None:
         if messagebox.askyesno("Salir", "¿Desea cerrar la aplicación?", parent=self):

@@ -11,6 +11,7 @@ def main() -> None:
         app = MainWindow(
             estudiantes_service=service,
             salas_service=service,
+            reservaciones_service=service,
         )
         app.mainloop()
 

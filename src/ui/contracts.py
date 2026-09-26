@@ -23,6 +23,17 @@ class SalaDTO(TypedDict):
     capacidad: int
     estado: str
 
+class ReservacionDTO(TypedDict):
+    id: str
+    carne: str
+    codigo_sala: str
+    fecha: str
+    hora_inicio: str
+    hora_fin: str
+    duracion: int
+    cantidad_personas: int
+    estado: str
+
 
 class EstudiantesService(Protocol):
     def listar_estudiantes(self) -> Sequence[EstudianteDTO]: ...
@@ -42,3 +53,97 @@ class SalasService(Protocol):
     def actualizar_sala(self, codigo: str, nombre: str, capacidad: str) -> None: ...
 
     def cambiar_estado_sala(self, codigo: str, estado: str) -> None: ...
+
+class ReservacionesService(Protocol):
+    def listar(self) -> Sequence[ReservacionDTO]: ...
+
+    def listar_por_rango_fechas(
+        self,
+        fecha_inicio: str,
+        fecha_fin: str,
+    ) -> Sequence[ReservacionDTO]: ...
+
+    def crear(
+        self,
+        carne: str,
+        codigo_sala: str,
+        fecha: str,
+        hora_inicio: str,
+        duracion: str,
+        cantidad_personas: str,
+    ) -> dict: ...
+
+    def buscar_por_estudiante(
+        self,
+        carne: str,
+    ) -> Sequence[ReservacionDTO]: ...
+
+    def modificar(
+        self,
+        id_reservacion: str,
+        codigo_sala: str,
+        fecha: str,
+        hora_inicio: str,
+        duracion: str,
+        cantidad_personas: str,
+    ) -> dict: ...
+
+    def cancelar(
+        self,
+        id_reservacion: str,
+    ) -> dict: ...
+
+    def listar_salas_disponibles(
+        self,
+    ) -> Sequence[SalaDTO]: ...
+
+    def consultar_disponibilidad(
+        self,
+        codigo_sala: str,
+        fecha: str,
+        hora_inicio: str,
+        duracion: str,
+    ) -> dict: ...
+
+    def validar_recurrencia(
+        self,
+        carne: str,
+        codigo_sala: str,
+        fecha_inicial: str,
+        hora_inicio: str,
+        duracion: str,
+        cantidad_personas: str,
+        cantidad_ocurrencias: str,
+    ) -> dict: ...
+
+    def crear_serie_recurrente(
+        self,
+        carne: str,
+        codigo_sala: str,
+        fecha_inicial: str,
+        hora_inicio: str,
+        duracion: str,
+        cantidad_personas: str,
+        cantidad_ocurrencias: str,
+    ) -> dict: ...
+
+    def crear_serie_recurrente(
+        self,
+        carne: str,
+        codigo_sala: str,
+        fecha_inicial: str,
+        hora_inicio: str,
+        duracion: str,
+        cantidad_personas: str,
+        cantidad_ocurrencias: str,
+    ) -> dict: ...
+
+    def cancelar_ocurrencia(
+        self,
+        id_reservacion: str,
+    ) -> dict: ...
+
+    def cancelar_serie_desde_ocurrencia(
+        self,
+        id_reservacion: str,
+    ) -> dict: ...

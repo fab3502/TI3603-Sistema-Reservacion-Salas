@@ -1058,6 +1058,111 @@ def obtener_reservacion(
 
     return dict(fila) if fila else None
 
+def listar_reservaciones(conexion):
+    """
+    Devuelve todas las reservaciones ordenadas por fecha y hora de inicio.
+    """
+    cursor = conexion.cursor()
+
+    cursor.execute(
+        """
+        SELECT *
+        FROM reservaciones
+        ORDER BY fecha, hora_inicio;
+        """
+    )
+
+    return [dict(fila) for fila in cursor.fetchall()]
+
+def actualizar_reservacion(
+    conexion,
+    id_reservacion,
+    codigo_sala,
+    fecha,
+    hora_inicio,
+    duracion,
+    cantidad_personas,
+):
+    """
+    RF-13: Modifica una reservación activa conservando su ID
+    """
+
+    cursor = conexion.cursor()
+
+    cursor.execute(
+        """
+        SELECT *
+        FROM reservaciones
+        WHERE id = ?;
+        """,
+        (id_reservacion,),
+    )
+
+    reserva = cursor.fetchone()
+
+    if reserva is None:
+        raise ValueError("La reservación no existe.")
+
+    if reserva["estado"] == "cancelada":
+        raise ValueError("La reservación está cancelada.")
+
+    try:
+        cursor.execute(
+            """
+            UPDATE reservaciones
+            SET codigo_sala = ?,
+                fecha = ?,
+                hora_inicio = ?,
+                duracion = ?,
+                cantidad_personas = ?
+            WHERE id = ?;
+            """,
+            (
+                codigo_sala,
+                fecha,
+                hora_inicio,
+                duracion,
+                cantidad_personas,
+                id_reservacion,
+            ),
+        )
+
+        _registrar_auditoria_sin_commit(
+            conexion,
+            "actualizacion",
+            "reservacion",
+            id_reservacion,
+        )
+
+        conexion.commit()
+    except Exception:
+        conexion.rollback()
+        raise
+
+
+def listar_reservaciones_por_rango_fechas(
+    conexion,
+    fecha_inicio: str,
+    fecha_fin: str,
+):
+    """
+    Devuelve todas las reservaciones entre dos fechas.
+    """
+    cursor = conexion.cursor()
+
+    cursor.execute(
+        """
+        SELECT *
+        FROM reservaciones
+        WHERE fecha BETWEEN ? AND ?
+        ORDER BY fecha, hora_inicio;
+        """,
+        (fecha_inicio, fecha_fin),
+    )
+
+    return [
+        dict(fila) for fila in cursor.fetchall()
+        ]
 
 def cancelar_reservaciones_futuras_serie(
     conexion,
