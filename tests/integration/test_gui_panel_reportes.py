@@ -24,16 +24,30 @@ from tests.utilidades import fecha_futura
 pytestmark = pytest.mark.gui
 
 
-@pytest.fixture
-def raiz():
+@pytest.fixture(scope="module")
+def _ventana_principal():
+    """
+    Una sola ventana Tk para todo el módulo.
+
+    Crear y destruir muchas ventanas tk.Tk() seguidas puede fallar de forma
+    intermitente en Windows, así que se reutiliza una sola.
+    """
     try:
         root = tk.Tk()
-    except tk.TclError:
-        pytest.skip("No hay pantalla disponible para crear ventanas Tkinter.")
+    except tk.TclError as exc:
+        pytest.skip(f"No hay pantalla disponible para crear ventanas Tkinter: {exc}")
     root.withdraw()
     configurar_estilos(root)
     yield root
     root.destroy()
+
+
+@pytest.fixture
+def raiz(_ventana_principal):
+    """Contenedor nuevo y aislado para cada prueba dentro de la ventana única."""
+    marco = tk.Frame(_ventana_principal)
+    yield marco
+    marco.destroy()
 
 
 @pytest.fixture
