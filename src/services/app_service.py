@@ -28,6 +28,7 @@ from src.services.reservaciones_service import (
     cancelar_ocurrencia as cancelar_ocurrencia_reservacion,
     cancelar_serie_desde_ocurrencia as cancelar_serie_desde_ocurrencia_reservacion
 )
+from src.services.panel_service import obtener_panel, consultar_historial
 
 class AppService:
     """Servicio utilizado por las pantallas de estudiantes y salas."""
@@ -602,6 +603,56 @@ class AppService:
                 "No se pudo cancelar la serie de reservaciones desde la ocurrencia."
             ) from exc
         
+    # ------------------------------------------------------------------
+    # Panel de control (RF-15) e historial (RF-17) - Parte 5
+    # ------------------------------------------------------------------
+
+    def obtener_panel(
+        self,
+        fecha: str | None = None,
+        codigo_sala: str | None = None,
+        estado: str | None = None,
+    ) -> dict:
+        """Devuelve indicadores, ocupación, próximas y reservaciones filtradas."""
+        try:
+            return obtener_panel(
+                self._conexion,
+                fecha=fecha,
+                codigo_sala=codigo_sala,
+                estado=estado,
+            )
+
+        except ValidacionError as exc:
+            raise ValueError(str(exc)) from exc
+
+        except sqlite3.Error as exc:
+            raise RuntimeError(
+                "No se pudo cargar el panel de control."
+            ) from exc
+
+    def listar_historial(
+        self,
+        entidad: str | None = None,
+        tipo_accion: str | None = None,
+        fecha: str | None = None,
+    ):
+        """Devuelve el historial de acciones (solo lectura)."""
+        try:
+            return consultar_historial(
+                self._conexion,
+                entidad=entidad,
+                tipo_accion=tipo_accion,
+                fecha=fecha,
+            )
+
+        except ValidacionError as exc:
+            raise ValueError(str(exc)) from exc
+
+        except sqlite3.Error as exc:
+            raise RuntimeError(
+                "No se pudo consultar el historial de acciones."
+            ) from exc
+
     # ------------------------------------------------------------------
     # Cierre
     # ------------------------------------------------------------------

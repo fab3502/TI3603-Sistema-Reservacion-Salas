@@ -1,1 +1,6 @@
-# Dependencias externas del proyecto se agregarán conforme avance el desarrollo.
+# La aplicación usa únicamente la biblioteca estándar de Python 3.10+
+# (tkinter, sqlite3, csv, datetime). No requiere paquetes externos para ejecutarse.
+#
+# Dependencias para ejecutar la suite de pruebas automatizadas:
+pytest>=7.4
+pytest-cov>=4.1

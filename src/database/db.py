@@ -223,6 +223,7 @@ def inicializar_base_datos():
         )
 
         _insertar_salas_iniciales(conexion)
+        _insertar_estudiantes_iniciales(conexion)
 
         conexion.commit()
 
@@ -256,6 +257,31 @@ def _insertar_salas_iniciales(conexion):
         VALUES (?, ?, ?, ?);
         """,
         salas_iniciales,
+    )
+
+
+def _insertar_estudiantes_iniciales(conexion):
+    """
+    Inserta los estudiantes iniciales de la sección 10 del enunciado.
+
+    INSERT OR IGNORE evita duplicados y respeta los cambios posteriores
+    (por ejemplo, si un estudiante inicial fue inactivado o editado).
+    Los datos iniciales no generan registros de auditoría porque no son
+    acciones realizadas por la persona usuaria.
+    """
+    estudiantes_iniciales = [
+        ("A001234567", "Andrea Solano", "andrea@universidad.ac.cr", "activo"),
+        ("B009876543", "Carlos Méndez", "carlos@universidad.ac.cr", "activo"),
+        ("C004567890", "Daniela Rojas", "daniela@universidad.ac.cr", "inactivo"),
+    ]
+
+    conexion.executemany(
+        """
+        INSERT OR IGNORE INTO estudiantes
+            (carne, nombre, correo, estado)
+        VALUES (?, ?, ?, ?);
+        """,
+        estudiantes_iniciales,
     )
 
 
@@ -1284,6 +1310,181 @@ def obtener_auditoria(
     )
 
     return [dict(fila) for fila in cursor.fetchall()]
+
+
+def listar_auditoria(
+    conexion,
+    entidad=None,
+    tipo_accion=None,
+    fecha=None,
+    limite=1000,
+):
+    """
+    RF-17 (consulta): devuelve el historial de acciones con filtros
+    opcionales, del registro más reciente al más antiguo.
+
+    - entidad: 'estudiante', 'sala' o 'reservacion'.
+    - tipo_accion: 'creacion', 'actualizacion' o 'cancelacion'.
+    - fecha: AAAA-MM-DD; filtra por el día de fecha_hora.
+
+    Es una operación de solo lectura.
+    """
+    condiciones = []
+    parametros = []
+
+    if entidad:
+        condiciones.append("entidad = ?")
+        parametros.append(entidad)
+
+    if tipo_accion:
+        condiciones.append("tipo_accion = ?")
+        parametros.append(tipo_accion)
+
+    if fecha:
+        condiciones.append("substr(fecha_hora, 1, 10) = ?")
+        parametros.append(fecha)
+
+    where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
+
+    cursor = conexion.cursor()
+
+    cursor.execute(
+        f"""
+        SELECT *
+        FROM auditoria
+        {where}
+        ORDER BY id DESC
+        LIMIT ?;
+        """,
+        (*parametros, limite),
+    )
+
+    return [dict(fila) for fila in cursor.fetchall()]
+
+
+# ---------------------------------------------------------------------------
+# Panel de control (RF-15)
+# ---------------------------------------------------------------------------
+
+def listar_reservaciones_filtradas(
+    conexion,
+    fecha=None,
+    codigo_sala=None,
+    estado=None,
+):
+    """
+    RF-15: devuelve reservaciones combinando filtros opcionales por
+    fecha, sala y estado. Incluye el nombre del estudiante y de la sala.
+
+    Orden ascendente por fecha y hora de inicio.
+    """
+    condiciones = []
+    parametros = []
+
+    if fecha:
+        condiciones.append("r.fecha = ?")
+        parametros.append(fecha)
+
+    if codigo_sala:
+        condiciones.append("r.codigo_sala = ?")
+        parametros.append(codigo_sala)
+
+    if estado:
+        condiciones.append("r.estado = ?")
+        parametros.append(estado)
+
+    where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
+
+    cursor = conexion.cursor()
+
+    cursor.execute(
+        f"""
+        SELECT r.*,
+               e.nombre AS nombre_estudiante,
+               s.nombre AS nombre_sala
+        FROM reservaciones r
+        LEFT JOIN estudiantes e ON e.carne = r.carne
+        LEFT JOIN salas s ON s.codigo = r.codigo_sala
+        {where}
+        ORDER BY r.fecha, r.hora_inicio, r.id;
+        """,
+        parametros,
+    )
+
+    return [dict(fila) for fila in cursor.fetchall()]
+
+
+def listar_proximas_reservaciones(
+    conexion,
+    fecha_actual,
+    hora_actual,
+    codigo_sala=None,
+    limite=10,
+):
+    """
+    RF-15: devuelve las próximas reservaciones activas, es decir,
+    las que inician después del momento indicado.
+    """
+    condiciones = [
+        "r.estado = 'activa'",
+        "(r.fecha > ? OR (r.fecha = ? AND r.hora_inicio > ?))",
+    ]
+    parametros = [fecha_actual, fecha_actual, hora_actual]
+
+    if codigo_sala:
+        condiciones.append("r.codigo_sala = ?")
+        parametros.append(codigo_sala)
+
+    cursor = conexion.cursor()
+
+    cursor.execute(
+        f"""
+        SELECT r.*,
+               e.nombre AS nombre_estudiante,
+               s.nombre AS nombre_sala
+        FROM reservaciones r
+        LEFT JOIN estudiantes e ON e.carne = r.carne
+        LEFT JOIN salas s ON s.codigo = r.codigo_sala
+        WHERE {' AND '.join(condiciones)}
+        ORDER BY r.fecha, r.hora_inicio, r.id
+        LIMIT ?;
+        """,
+        (*parametros, limite),
+    )
+
+    return [dict(fila) for fila in cursor.fetchall()]
+
+
+def contar_registros_panel(conexion, fecha_actual, hora_actual):
+    """
+    RF-15: calcula los conteos usados por los indicadores del panel
+    en una sola consulta de lectura.
+    """
+    cursor = conexion.cursor()
+
+    cursor.execute(
+        """
+        SELECT
+            (SELECT COUNT(*) FROM reservaciones
+              WHERE estado = 'activa' AND fecha = ?) AS activas_hoy,
+            (SELECT COUNT(*) FROM reservaciones
+              WHERE estado = 'activa'
+                AND (fecha > ? OR (fecha = ? AND hora_inicio > ?)))
+                AS proximas,
+            (SELECT COUNT(*) FROM reservaciones
+              WHERE estado = 'activa') AS activas_total,
+            (SELECT COUNT(*) FROM reservaciones
+              WHERE estado = 'cancelada') AS canceladas_total,
+            (SELECT COUNT(*) FROM salas) AS salas_total,
+            (SELECT COUNT(*) FROM salas
+              WHERE estado = 'disponible') AS salas_disponibles,
+            (SELECT COUNT(*) FROM estudiantes
+              WHERE estado = 'activo') AS estudiantes_activos;
+        """,
+        (fecha_actual, fecha_actual, fecha_actual, hora_actual),
+    )
+
+    return dict(cursor.fetchone())
 
 
 # ---------------------------------------------------------------------------

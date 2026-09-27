@@ -85,3 +85,36 @@ def configurar_estilos(root: tk.Misc) -> None:
         padding=(8, 8),
     )
     style.map("Treeview", background=[("selected", "#D8EDF7")], foreground=[("selected", COLOR_TEXTO)])
+
+    # Parte 5: indicadores del panel y estados vacíos.
+    style.configure(
+        "KpiValue.TLabel",
+        background=COLOR_PANEL,
+        foreground=COLOR_PRIMARIO,
+        font=("Segoe UI", 20, "bold"),
+    )
+    style.configure(
+        "KpiLabel.TLabel",
+        background=COLOR_PANEL,
+        foreground=COLOR_TEXTO_SECUNDARIO,
+        font=("Segoe UI", 9),
+    )
+    style.configure(
+        "Empty.TLabel",
+        background=COLOR_PANEL,
+        foreground=COLOR_TEXTO_SECUNDARIO,
+        font=("Segoe UI", 10, "italic"),
+        padding=(12, 10),
+    )
+    style.configure(
+        "Section.TLabel",
+        background=COLOR_PANEL,
+        foreground=COLOR_TEXTO,
+        font=("Segoe UI", 11, "bold"),
+    )
+    style.configure(
+        "Filter.TLabel",
+        background=COLOR_PANEL,
+        foreground=COLOR_TEXTO,
+        font=("Segoe UI", 10),
+    )
