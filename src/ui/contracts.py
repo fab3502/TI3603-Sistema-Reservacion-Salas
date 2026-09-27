@@ -147,3 +147,23 @@ class ReservacionesService(Protocol):
         self,
         id_reservacion: str,
     ) -> dict: ...
+
+
+class PanelService(Protocol):
+    """Contrato de la Parte 5: panel de control (RF-15) e historial (RF-17)."""
+
+    def listar_salas(self) -> Sequence[SalaDTO]: ...
+
+    def obtener_panel(
+        self,
+        fecha: str | None = None,
+        codigo_sala: str | None = None,
+        estado: str | None = None,
+    ) -> dict: ...
+
+    def listar_historial(
+        self,
+        entidad: str | None = None,
+        tipo_accion: str | None = None,
+        fecha: str | None = None,
+    ) -> Sequence[dict]: ...

@@ -12,6 +12,7 @@ def main() -> None:
             estudiantes_service=service,
             salas_service=service,
             reservaciones_service=service,
+            panel_service=service,
         )
         app.mainloop()
 
