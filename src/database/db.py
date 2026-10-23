@@ -222,6 +222,10 @@ def inicializar_base_datos():
             """
         )
 
+        # RN-09 / RN-10: impedir solapes parciales incluso si se ejecuta
+        # SQL directamente, omitiendo las validaciones de servicios.
+        _crear_triggers_sin_solapamiento(conexion)
+
         _insertar_salas_iniciales(conexion)
         _insertar_estudiantes_iniciales(conexion)
 
@@ -233,6 +237,53 @@ def inicializar_base_datos():
 
     finally:
         conexion.close()
+
+
+def _crear_triggers_sin_solapamiento(conexion):
+    """Protege RN-09 dentro de SQLite, también frente a INSERT/UPDATE directos.
+
+    Se expresan los horarios en minutos desde medianoche. Para dos intervalos
+    [inicio, fin), el contacto de extremos no es un conflicto (RN-10).
+    No se alteran las reservas existentes al crear estos triggers.
+    """
+    inicio_nuevo = (
+        "(CAST(substr(NEW.hora_inicio, 1, 2) AS INTEGER) * 60 + "
+        "CAST(substr(NEW.hora_inicio, 4, 2) AS INTEGER))"
+    )
+    inicio_existente = (
+        "(CAST(substr(r.hora_inicio, 1, 2) AS INTEGER) * 60 + "
+        "CAST(substr(r.hora_inicio, 4, 2) AS INTEGER))"
+    )
+    condicion = f"""
+        r.codigo_sala = NEW.codigo_sala
+        AND r.fecha = NEW.fecha
+        AND r.estado = 'activa'
+        AND {inicio_nuevo} < {inicio_existente} + r.duracion * 60
+        AND {inicio_nuevo} + NEW.duracion * 60 > {inicio_existente}
+    """
+
+    conexion.execute(f"""
+        CREATE TRIGGER IF NOT EXISTS trg_reservas_sin_solape_insert
+        BEFORE INSERT ON reservaciones
+        WHEN NEW.estado = 'activa'
+            AND EXISTS (SELECT 1 FROM reservaciones AS r WHERE {condicion})
+        BEGIN
+            SELECT RAISE(ABORT, 'conflicto de horario entre reservaciones activas');
+        END;
+    """)
+    conexion.execute(f"""
+        CREATE TRIGGER IF NOT EXISTS trg_reservas_sin_solape_update
+        BEFORE UPDATE OF codigo_sala, fecha, hora_inicio, duracion, estado
+        ON reservaciones
+        WHEN NEW.estado = 'activa'
+            AND EXISTS (
+                SELECT 1 FROM reservaciones AS r
+                WHERE r.id <> NEW.id AND {condicion}
+            )
+        BEGIN
+            SELECT RAISE(ABORT, 'conflicto de horario entre reservaciones activas');
+        END;
+    """)
 
 
 def _insertar_salas_iniciales(conexion):
@@ -820,6 +871,11 @@ def crear_reservacion(
         if "FOREIGN KEY" in mensaje:
             raise
 
+        if "CONFLICTO DE HORARIO" in mensaje:
+            raise ReservaDuplicadaError(
+                "Existe una reservación activa con un horario superpuesto."
+            ) from error
+
         if (
             "RESERVACIONES.CODIGO_SALA" in mensaje
             and "RESERVACIONES.FECHA" in mensaje
@@ -908,6 +964,11 @@ def crear_serie_reservaciones(
 
         if "FOREIGN KEY" in mensaje:
             raise
+
+        if "CONFLICTO DE HORARIO" in mensaje:
+            raise ReservaDuplicadaError(
+                "Existe una reservación activa con un horario superpuesto."
+            ) from error
 
         if (
             "RESERVACIONES.CODIGO_SALA" in mensaje
