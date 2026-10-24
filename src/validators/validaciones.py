@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, date
 
 
@@ -9,6 +10,10 @@ MENSAJE_DURACION_ENTERA = "La duración debe ser un número entero."
 MENSAJE_CANTIDAD_PERSONAS_ENTERA = "La cantidad de personas debe ser un número entero."
 MENSAJE_CANTIDAD_OCURRENCIAS_ENTERA = "La cantidad de ocurrencias debe ser un número entero."
 MENSAJE_CAPACIDAD_ENTERA = "La capacidad debe ser un número entero."
+
+# Límites de salas (Fase 6, hallazgos Salas H-01 y H-02).
+CAPACIDAD_MAXIMA_SALA = 100
+LONGITUD_MAXIMA_CODIGO_SALA = 10
 
 def limpiar_texto(valor):
     """Elimina espacios al inicio y al final."""
@@ -196,12 +201,18 @@ def validar_cantidad_ocurrencias(cantidad):
 # Salas
 
 def validar_codigo_sala(codigo):
-    """Valida que el código de una sala no esté vacío."""
+    """RF-12: el código es obligatorio, alfanumérico y de longitud limitada."""
 
     codigo = limpiar_texto(codigo)
 
     if not codigo:
         raise ValidacionError("El código de la sala es obligatorio.")
+
+    if not re.fullmatch(rf"[A-Za-z0-9]{{1,{LONGITUD_MAXIMA_CODIGO_SALA}}}", codigo):
+        raise ValidacionError(
+            f"El código de la sala solo admite letras y números, "
+            f"con un máximo de {LONGITUD_MAXIMA_CODIGO_SALA} caracteres."
+        )
 
     return codigo.upper()
 
@@ -231,6 +242,11 @@ def validar_capacidad_sala(capacidad):
 
     if capacidad <= 0:
         raise ValidacionError("La capacidad de la sala debe ser mayor que cero.")
+
+    if capacidad > CAPACIDAD_MAXIMA_SALA:
+        raise ValidacionError(
+            f"La capacidad de la sala no puede ser mayor que {CAPACIDAD_MAXIMA_SALA}."
+        )
 
     return capacidad
 

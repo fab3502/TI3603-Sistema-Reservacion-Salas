@@ -221,31 +221,6 @@ def cancelar_reservacion(conexion, id_reservacion):
         "mensaje": (f"La reservación con ID {id_reservacion} fue cancelada correctamente."),
     }
 
-def validar_superposicion_modificacion(conexion,id_reservacion,codigo_sala,fecha,hora_inicio,duracion):
-    """
-    Valida superposicion durante una modificación, 
-    ignorando la reservación que se está modificando.
-    """
-
-    existentes = listar_reservaciones_por_sala_fecha(conexion, codigo_sala, fecha)
-
-    inicio_nuevo = datetime.strptime(hora_inicio, "%H:%M")
-
-    fin_nuevo = inicio_nuevo + timedelta(hours=int(duracion))
-
-    for reservacion in existentes:
-        if reservacion["id"] == id_reservacion:
-            continue
-
-        inicio_existente = datetime.strptime(reservacion["hora_inicio"], "%H:%M")
-        fin_existente = inicio_existente + timedelta(hours=int(reservacion["duracion"]))
-
-        if (inicio_nuevo < fin_existente) and (fin_nuevo > inicio_existente):
-            raise ValidacionError(
-                f"La reservación se superpone con la reservación existente "
-                f"con ID {reservacion['id']} en la sala {codigo_sala}."
-            )
-
 def actualizar_reservacion(conexion, id_reservacion,codigo_sala,fecha,hora_inicio,duracion,cantidad_personas):
     """
     RF-13:
@@ -298,8 +273,12 @@ def actualizar_reservacion(conexion, id_reservacion,codigo_sala,fecha,hora_inici
 
     hora_texto = hora_validada.strftime("%H:%M")
 
-    # RN-09 y RN-10
-    validar_superposicion_modificacion(conexion,id_reservacion,codigo_sala,fecha_texto,hora_texto,duracion)
+    # RN-09 y RN-10 (misma regla que al crear, ignorando la reserva modificada)
+    validar_superposicion(conexion,codigo_sala,fecha_texto,hora_texto,duracion,id_excluir=id_reservacion)
+
+    # RN-11: la reserva modificada queda vigente, así que no puede superar el límite
+    validar_limite_reservas(conexion,carne,cantidad_nueva=1,id_excluir=id_reservacion,
+                            serie_id_nueva=reserva_original["serie_id"])
 
     try:
         db_actualizar_reservacion(
@@ -466,7 +445,8 @@ def cancelar_serie_desde_ocurrencia(conexion, id_reservacion):
     """
     RF-14:
     Cancela la ocurrencia seleccionada y todas las ocurrencias
-    futuras pertenecientes a la misma serie.
+    futuras pertenecientes a la misma serie. Las ocurrencias que
+    ya pasaron se conservan.
     """
 
     reserva = obtener_reservacion(conexion, id_reservacion)
@@ -482,8 +462,16 @@ def cancelar_serie_desde_ocurrencia(conexion, id_reservacion):
             "La reservación seleccionada no pertenece a una serie recurrente."
         )
 
-    ids_cancelados = cancelar_reservaciones_futuras_serie(conexion,reserva["serie_id"],reserva["fecha"],
-                                                          reserva["hora_inicio"])
+    # Solo se cancelan ocurrencias futuras: si la seleccionada ya pasó,
+    # se toma como punto de partida la fecha y hora actuales.
+    inicio_ocurrencia = datetime.strptime(f'{reserva["fecha"]} {reserva["hora_inicio"]}', "%Y-%m-%d %H:%M")
+    desde = max(inicio_ocurrencia, datetime.now())
+
+    ids_cancelados = cancelar_reservaciones_futuras_serie(conexion,reserva["serie_id"],
+                                                          desde.strftime("%Y-%m-%d"),desde.strftime("%H:%M"))
+
+    if not ids_cancelados:
+        raise ValidacionError("La serie no tiene ocurrencias futuras para cancelar.")
 
     return {
         "serie_id": reserva["serie_id"],
