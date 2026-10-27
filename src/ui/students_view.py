@@ -46,6 +46,12 @@ class StudentsView(ttk.Frame):
         cont_tabla = ttk.Frame(self, style="Card.TFrame", padding=1)
         cont_tabla.pack(fill="both", expand=True)
 
+        self.lbl_vacio = ttk.Label(
+            cont_tabla,
+            text="No hay estudiantes registrados para mostrar.",
+            style="Empty.TLabel",
+        )
+
         columnas = ("carne", "nombre", "correo", "estado")
         self.tabla = ttk.Treeview(cont_tabla, columns=columnas, show="headings", selectmode="browse")
         self.tabla.heading("carne", text="Carné")
@@ -71,6 +77,11 @@ class StudentsView(ttk.Frame):
         except Exception as exc:  # la GUI traduce el error técnico a un mensaje amigable
             messagebox.showerror("No se pudo cargar", str(exc), parent=self)
             return
+
+        if estudiantes:
+            self.lbl_vacio.pack_forget()
+        else:
+            self.lbl_vacio.pack(before=self.tabla, fill="x", padx=12, pady=(10, 4))
 
         for estudiante in estudiantes:
             self.tabla.insert(
