@@ -2,7 +2,30 @@ from __future__ import annotations
 
 import csv
 import tkinter as tk
+from datetime import datetime
 from tkinter import filedialog, messagebox, ttk
+
+
+def validar_rango_fechas(fecha_inicio: str, fecha_fin: str) -> tuple[str, str]:
+    """Valida en la interfaz el rango solicitado por RF-16.
+
+    La validación se mantiene aquí porque su objetivo es evitar que el formulario
+    acepte silenciosamente entradas que el equipo evaluador identificó como
+    confusas (por ejemplo ``abc`` / ``xyz`` o un rango invertido).
+    """
+    try:
+        inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d").date()
+        fin = datetime.strptime(fecha_fin, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise ValueError("Las fechas deben utilizar el formato AAAA-MM-DD.") from exc
+
+    if inicio.strftime("%Y-%m-%d") != fecha_inicio or fin.strftime("%Y-%m-%d") != fecha_fin:
+        raise ValueError("Las fechas deben utilizar el formato AAAA-MM-DD.")
+
+    if fin < inicio:
+        raise ValueError("La fecha final no puede ser anterior a la fecha inicial.")
+
+    return fecha_inicio, fecha_fin
 
 
 class ReportsView(ttk.Frame):
@@ -222,6 +245,16 @@ class ReportsView(ttk.Frame):
             messagebox.showwarning(
                 "Reporte",
                 "Ingrese la fecha inicial y la fecha final.",
+                parent=self,
+            )
+            return
+
+        try:
+            fecha_inicio, fecha_fin = validar_rango_fechas(fecha_inicio, fecha_fin)
+        except ValueError as error:
+            messagebox.showwarning(
+                "Fechas inválidas",
+                str(error),
                 parent=self,
             )
             return

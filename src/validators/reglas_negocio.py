@@ -82,7 +82,7 @@ def validar_superposicion(conexion, codigo_sala, fecha, hora_inicio, duracion, i
 
     return True
 
-def validar_limite_reservas(conexion,carne,cantidad_nueva=1,id_excluir=None):
+def validar_limite_reservas(conexion,carne,cantidad_nueva=1,id_excluir=None,serie_id_nueva=None):
     """
     RN-11:
     Cada estudiante puede tener como máximo tres reservaciones
@@ -129,6 +129,11 @@ def validar_limite_reservas(conexion,carne,cantidad_nueva=1,id_excluir=None):
             reservas_individuales += 1
 
     cantidad_actual = reservas_individuales + len(series_activas)
+
+    # Si la reserva evaluada pertenece a una serie que ya se contó,
+    # no suma una reserva adicional.
+    if serie_id_nueva is not None and serie_id_nueva in series_activas:
+        cantidad_nueva = 0
 
     if cantidad_actual + cantidad_nueva > 3:
         raise ValidacionError(
