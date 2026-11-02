@@ -333,7 +333,9 @@ class ReportsView(ttk.Frame):
                         "Carné",
                         "Sala",
                         "Fecha",
+                        "Nombre del estudiante",
                         "Hora de inicio",
+                        "Hora de fin",
                         "Duración",
                         "Cantidad de personas",
                         "Estado",
@@ -341,13 +343,22 @@ class ReportsView(ttk.Frame):
                 )
 
                 for reserva in self._reservaciones_actuales:
+                    hora_inicio = int(
+                        reserva["hora_inicio"].split(":")[0]
+                    )
+                    hora_fin = hora_inicio + int(
+                        reserva["duracion"]
+                    )
+
                     escritor.writerow(
                         [
                             reserva["id"],
                             reserva["carne"],
                             reserva["codigo_sala"],
                             reserva["fecha"],
+                            reserva["nombre_estudiante"],
                             reserva["hora_inicio"],
+                            f"{hora_fin:02d}:00",
                             reserva["duracion"],
                             reserva["cantidad_personas"],
                             reserva["estado"],

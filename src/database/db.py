@@ -1233,23 +1233,28 @@ def listar_reservaciones_por_rango_fechas(
     fecha_fin: str,
 ):
     """
-    Devuelve todas las reservaciones entre dos fechas.
+    Devuelve todas las reservaciones entre dos fechas,
+    incluyendo el nombre del estudiante.
     """
     cursor = conexion.cursor()
 
     cursor.execute(
         """
-        SELECT *
-        FROM reservaciones
-        WHERE fecha BETWEEN ? AND ?
-        ORDER BY fecha, hora_inicio;
+        SELECT
+            r.*,
+            e.nombre AS nombre_estudiante
+        FROM reservaciones r
+        INNER JOIN estudiantes e
+            ON r.carne = e.carne
+        WHERE r.fecha BETWEEN ? AND ?
+        ORDER BY r.fecha, r.hora_inicio;
         """,
         (fecha_inicio, fecha_fin),
     )
 
     return [
         dict(fila) for fila in cursor.fetchall()
-        ]
+    ]
 
 def cancelar_reservaciones_futuras_serie(
     conexion,
