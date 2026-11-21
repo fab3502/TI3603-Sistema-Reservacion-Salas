@@ -1,0 +1,14 @@
+......................................sssssss.s......................... [ 25%]
+........................................................................ [ 50%]
+........................................................................ [ 75%]
+.....................................................................    [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/integration/test_gui_panel_reportes.py:78: No hay pantalla disponible para crear ventanas Tkinter: couldn't connect to display ":0"
+SKIPPED [1] tests/integration/test_gui_panel_reportes.py:101: No hay pantalla disponible para crear ventanas Tkinter: couldn't connect to display ":0"
+SKIPPED [1] tests/integration/test_gui_panel_reportes.py:113: No hay pantalla disponible para crear ventanas Tkinter: couldn't connect to display ":0"
+SKIPPED [1] tests/integration/test_gui_panel_reportes.py:119: No hay pantalla disponible para crear ventanas Tkinter: couldn't connect to display ":0"
+SKIPPED [1] tests/integration/test_gui_panel_reportes.py:129: No hay pantalla disponible para crear ventanas Tkinter: couldn't connect to display ":0"
+SKIPPED [1] tests/integration/test_gui_panel_reportes.py:148: No hay pantalla disponible para crear ventanas Tkinter: couldn't connect to display ":0"
+SKIPPED [1] tests/integration/test_gui_panel_reportes.py:163: No hay pantalla disponible para crear ventanas Tkinter: couldn't connect to display ":0"
+SKIPPED [1] tests/integration/test_gui_panel_reportes.py:181: No hay pantalla disponible para crear ventanas Tkinter: couldn't connect to display ":0"
+277 passed, 8 skipped in 3.17s

@@ -1,0 +1,86 @@
+F.FF.                                                                    [100%]
+=================================== FAILURES ===================================
+_________ test_fase6_rf01_archivo_danado_error_amigable_y_sin_borrado __________
+
+ruta_bd = PosixPath('/tmp/pytest-of-root/pytest-7/test_fase6_rf01_archivo_danado0/prueba.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f758f06d810>
+
+    def test_fase6_rf01_archivo_danado_error_amigable_y_sin_borrado(ruta_bd, monkeypatch):
+        """H-01 Persistencia: la GUI avisa, no inicia ni reemplaza datos dañados."""
+        contenido = b"NO ES SQLITE\x00RESERVAS DE PRUEBA\x01"
+        ruta_bd.write_bytes(contenido)
+        dialogo = Mock()
+        ventana = Mock()
+        monkeypatch.setattr(messagebox, "showerror", dialogo)
+        monkeypatch.setattr(entrada, "MainWindow", ventana)
+    
+>       assert entrada.main() == 1
+               ^^^^^^^^^^^^^^
+
+tests/unit/test_fase6_parte1_persistencia.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/main.py:8: in main
+    service = AppService()
+              ^^^^^^^^^^^^
+src/services/app_service.py:37: in __init__
+    db.inicializar_base_datos()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def inicializar_base_datos():
+        """
+        Crea las tablas, índices, contador e información inicial necesaria.
+    
+        La operación es segura ante ejecuciones repetidas:
+        no recrea ni duplica los registros existentes.
+        """
+        conexion = obtener_conexion()
+    
+        try:
+            cursor = conexion.cursor()
+    
+>           cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS estudiantes (
+                    carne TEXT PRIMARY KEY COLLATE NOCASE,
+                    nombre TEXT NOT NULL,
+                    correo TEXT NOT NULL,
+                    estado TEXT NOT NULL DEFAULT 'activo'
+                );
+                """
+            )
+E           sqlite3.DatabaseError: file is not a database
+
+src/database/db.py:120: DatabaseError
+_______________ test_fase6_rn09_solape_parcial_directo_bloqueado _______________
+
+conexion = <sqlite3.Connection object at 0x7f758efe2200>
+
+    def test_fase6_rn09_solape_parcial_directo_bloqueado(conexion):
+        """H-03 Creación: SQLite rechaza un solape que omite la lógica de servicio."""
+        fecha = fecha_futura(2)
+        _insertar_directo(conexion, "R8001", "S01", fecha, "10:00", 2)
+        conexion.commit()
+>       with pytest.raises(sqlite3.IntegrityError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'sqlite3.IntegrityError'>
+
+tests/unit/test_fase6_parte1_persistencia.py:69: Failed
+___________ test_fase6_rn09_solape_en_modificacion_directa_bloqueado ___________
+
+conexion = <sqlite3.Connection object at 0x7f758efe27a0>
+
+    def test_fase6_rn09_solape_en_modificacion_directa_bloqueado(conexion):
+        fecha = fecha_futura(2)
+        _insertar_directo(conexion, "R8001", "S01", fecha, "10:00", 2)
+        _insertar_directo(conexion, "R8002", "S01", fecha, "12:00", 1)
+        conexion.commit()
+>       with pytest.raises(sqlite3.IntegrityError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'sqlite3.IntegrityError'>
+
+tests/unit/test_fase6_parte1_persistencia.py:80: Failed
+=========================== short test summary info ============================
+FAILED tests/unit/test_fase6_parte1_persistencia.py::test_fase6_rf01_archivo_danado_error_amigable_y_sin_borrado - sqlite3.DatabaseError: file is not a database
+FAILED tests/unit/test_fase6_parte1_persistencia.py::test_fase6_rn09_solape_parcial_directo_bloqueado - Failed: DID NOT RAISE <class 'sqlite3.IntegrityError'>
+FAILED tests/unit/test_fase6_parte1_persistencia.py::test_fase6_rn09_solape_en_modificacion_directa_bloqueado - Failed: DID NOT RAISE <class 'sqlite3.IntegrityError'>
+3 failed, 2 passed in 0.20s

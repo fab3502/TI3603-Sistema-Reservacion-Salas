@@ -26,7 +26,7 @@ def bd_con_carga(conexion):
     salas = ["S01", "S02", "S03", "S05"]
     reservas = []
     for i in range(5000):
-        dia = date.today() + timedelta(days=1 + i // 48)     # 48 reservas por día
+        dia = date.today() + timedelta(days=i // 48)     # 48 reservas por día
         indice_dia = i % 48
         sala = salas[indice_dia % 4]
         hora = 8 + indice_dia // 4                           # 08:00 a 19:00
@@ -77,8 +77,8 @@ def test_volumen_cargado(bd_con_carga):
 ])
 def test_consulta_menor_a_dos_segundos(bd_con_carga, nombre, consulta):
     _, segundos = _medir(lambda: consulta(bd_con_carga))
+    print(f"{nombre}: {segundos:.3f} s")
     assert segundos < LIMITE_SEGUNDOS, f"{nombre} tardó {segundos:.3f} s"
-
 
 def test_crear_reservacion_con_carga(bd_con_carga):
     fecha = (date.today() + timedelta(days=200)).isoformat()
@@ -86,4 +86,5 @@ def test_crear_reservacion_con_carga(bd_con_carga):
         lambda: rs.crear_reservacion(bd_con_carga, "A001234567", "S01", fecha, "10:00", "1", "2")
     )
     assert resultado["id"] == "R5001"
+    print(f"Crear reservación con carga: {segundos:.3f} s")
     assert segundos < LIMITE_SEGUNDOS

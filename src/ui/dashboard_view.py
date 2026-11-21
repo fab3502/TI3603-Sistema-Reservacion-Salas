@@ -17,6 +17,7 @@ from src.ui.styles import COLOR_TEXTO_SECUNDARIO
 
 OPCION_TODAS = "Todas"
 OPCION_TODOS = "Todos"
+OPCION_ACTIVAS = "activa"
 
 
 def barra_ocupacion(porcentaje: int, bloques: int = 10) -> str:
@@ -24,6 +25,11 @@ def barra_ocupacion(porcentaje: int, bloques: int = 10) -> str:
     porcentaje = max(0, min(int(porcentaje), 100))
     llenos = round(porcentaje * bloques / 100)
     return f"{'█' * llenos}{'░' * (bloques - llenos)}  {porcentaje} %"
+
+
+def cantidad_proximas_visibles(panel: dict) -> int:
+    """Cantidad que debe mostrar el KPI de próximas: exactamente la tabla visible."""
+    return len(panel.get("proximas", []))
 
 
 class DashboardView(ttk.Frame):
@@ -83,7 +89,9 @@ class DashboardView(ttk.Frame):
         self.combo_sala.grid(row=0, column=3, padx=(0, 16))
 
         ttk.Label(card, text="Estado:", style="Filter.TLabel").grid(row=0, column=4, padx=(0, 6))
-        self.var_estado = tk.StringVar(value=OPCION_TODOS)
+        # Las reservaciones canceladas siguen disponibles mediante el filtro,
+        # pero la vista diaria muestra activas por defecto (hallazgo H-02).
+        self.var_estado = tk.StringVar(value=OPCION_ACTIVAS)
         ttk.Combobox(
             card,
             textvariable=self.var_estado,
@@ -105,7 +113,7 @@ class DashboardView(ttk.Frame):
 
         indicadores = [
             ("reservas_hoy", "Reservas activas hoy"),
-            ("proximas", "Próximas reservas"),
+            ("proximas", "Próximas visibles"),
             ("activas_total", "Activas en total"),
             ("canceladas_total", "Canceladas"),
             ("salas", "Salas disponibles"),
@@ -220,7 +228,7 @@ class DashboardView(ttk.Frame):
     def _limpiar_filtros(self) -> None:
         self.var_fecha.set(date.today().strftime("%Y-%m-%d"))
         self.var_sala.set(OPCION_TODAS)
-        self.var_estado.set(OPCION_TODOS)
+        self.var_estado.set(OPCION_ACTIVAS)
         self.refrescar()
 
     def refrescar(self) -> None:
@@ -242,14 +250,16 @@ class DashboardView(ttk.Frame):
             )
             return
 
-        self._mostrar_indicadores(panel["indicadores"])
+        self._mostrar_indicadores(panel["indicadores"], cantidad_proximas_visibles(panel))
         self._mostrar_ocupacion(panel)
         self._mostrar_proximas(panel["proximas"])
         self._mostrar_reservaciones(panel)
 
-    def _mostrar_indicadores(self, ind: dict) -> None:
+    def _mostrar_indicadores(self, ind: dict, proximas_visibles: int) -> None:
         self._kpis["reservas_hoy"].configure(text=str(ind["reservas_hoy"]))
-        self._kpis["proximas"].configure(text=str(ind["proximas"]))
+        # El indicador usa exactamente el mismo resultado filtrado y limitado
+        # que la tabla de próximas reservaciones (hallazgo H-01 del panel).
+        self._kpis["proximas"].configure(text=str(proximas_visibles))
         self._kpis["activas_total"].configure(text=str(ind["activas_total"]))
         self._kpis["canceladas_total"].configure(text=str(ind["canceladas_total"]))
         self._kpis["salas"].configure(text=f"{ind['salas_disponibles']}/{ind['salas_total']}")

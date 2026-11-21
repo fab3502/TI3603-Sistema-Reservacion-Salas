@@ -13,6 +13,8 @@ class RecurrenceWindow(tk.Toplevel):
         super().__init__(parent)
 
         self._service = reservaciones_service
+        self._ultima_validacion = None
+        self._firma_validacion = None
 
         self.title("Reservaciones recurrentes")
         self.geometry("850x620")
@@ -425,6 +427,9 @@ class RecurrenceWindow(tk.Toplevel):
                 resultado["ocurrencias"]
             )
 
+            self._ultima_validacion = resultado
+            self._firma_validacion = self._firma_formulario()
+
             if resultado["tiene_conflictos"]:
                 messagebox.showwarning(
                     "Conflictos",
@@ -439,6 +444,8 @@ class RecurrenceWindow(tk.Toplevel):
                 )
 
         except ValueError as error:
+            self._ultima_validacion = None
+            self._firma_validacion = None
             messagebox.showwarning(
                 "Datos inválidos",
                 str(error),
@@ -446,6 +453,8 @@ class RecurrenceWindow(tk.Toplevel):
             )
 
         except Exception:
+            self._ultima_validacion = None
+            self._firma_validacion = None
             messagebox.showerror(
                 "Error",
                 "No fue posible validar la recurrencia.",
@@ -477,7 +486,56 @@ class RecurrenceWindow(tk.Toplevel):
                 ),
             )
 
+    def _firma_formulario(self) -> tuple[str, ...]:
+        """Identifica los datos que fueron revisados en el resumen."""
+        return (
+            self.entry_carne.get().strip(),
+            self.combo_sala.get().strip(),
+            self.entry_fecha.get().strip(),
+            self.combo_hora.get().strip(),
+            self.combo_duracion.get().strip(),
+            self.entry_personas.get().strip(),
+            self.combo_ocurrencias.get().strip(),
+        )
+
+    @staticmethod
+    def _texto_confirmacion(ocurrencias) -> str:
+        lineas = [
+            f"{ocurrencia['ocurrencia']}. {ocurrencia['fecha']} — "
+            f"{'Disponible' if ocurrencia['disponible'] else 'Conflicto'}"
+            for ocurrencia in ocurrencias
+        ]
+        return (
+            "Se crearán las siguientes ocurrencias:\n\n"
+            + "\n".join(lineas)
+            + "\n\n¿Desea confirmar la creación de la serie?"
+        )
+
     def _crear_serie(self) -> None:
+        if self._ultima_validacion is None or self._firma_validacion != self._firma_formulario():
+            messagebox.showwarning(
+                "Revisión requerida",
+                "Antes de crear la serie, use 'Revisar conflictos' con los datos actuales.",
+                parent=self,
+            )
+            return
+
+        if self._ultima_validacion.get("tiene_conflictos"):
+            messagebox.showwarning(
+                "Conflictos pendientes",
+                "La serie contiene conflictos. Revise el resumen antes de intentar crearla.",
+                parent=self,
+            )
+            return
+
+        confirmar = messagebox.askyesno(
+            "Confirmar serie recurrente",
+            self._texto_confirmacion(self._ultima_validacion["ocurrencias"]),
+            parent=self,
+        )
+        if not confirmar:
+            return
+
         try:
             resultado = (
                 self._service.crear_serie_recurrente(
@@ -502,6 +560,9 @@ class RecurrenceWindow(tk.Toplevel):
 
             for item in self.tabla.get_children():
                 self.tabla.delete(item)
+
+            self._ultima_validacion = None
+            self._firma_validacion = None
 
             
         except ValueError as error:

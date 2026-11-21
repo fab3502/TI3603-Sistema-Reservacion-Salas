@@ -306,7 +306,7 @@ class ReservationsView(ttk.Frame):
 
         ttk.Label(
             frame,
-            text="Disponibilidad:",
+            text="Disponibilidad puntual (un horario):",
             style="Subtitle.TLabel",
         ).pack(
             side="left"
@@ -314,7 +314,7 @@ class ReservationsView(ttk.Frame):
 
         ttk.Button(
             frame,
-            text="Consultar horario seleccionado",
+            text="Consultar este horario",
             command=self._consultar_disponibilidad,
             style="Secondary.TButton",
         ).pack(
